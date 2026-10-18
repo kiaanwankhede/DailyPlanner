@@ -109,8 +109,8 @@ Rules for the awkward cases:
 ## 7. Backups
 
 - **Required.** Set up on first run (can be postponed, but Today shows a banner until done).
-- **Encrypted file** in a folder you pick with Android's file picker (pick Google Drive to keep it
-  off the phone). File format:
+- **Encrypted file** at a location you pick with Android's file picker (pick Google Drive to keep it
+  off the phone). That file always holds the newest backup. File format:
   `"ROZ1" | version | salt | data-key sealed with passphrase key | data-key sealed with recovery key
   | iv | AES-256-GCM(gzip(JSON))`. A random data key encrypts the data; the passphrase and the
   recovery code each unlock that key (PBKDF2-SHA256), so either one restores the backup.
@@ -120,8 +120,9 @@ Rules for the awkward cases:
   you still know the passphrase.
 - **When**: nightly while charging on Wi-Fi, and a few minutes after big changes (deletes,
   restores, bulk edits).
-- **Keeps history**: the last 7 backups plus the newest one from each month; older files are
-  deleted. Never overwrites the only copy.
+- **Keeps history**: the app also keeps the last 7 backups plus the newest one from each month in
+  its own storage on the phone; older copies are deleted. If a new backup would be empty while the
+  last one had data, the picked file is left alone, so a wiped phone never overwrites a good copy.
 - **Stale warning**: if no backup succeeded for 3 days, Today shows a banner with *Back up now*.
 - **Restore** shows a preview ("backup from 12 Oct: 6 habits, 14 chores, 24 birthdays") and asks
   before replacing what's on the phone.

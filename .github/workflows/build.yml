@@ -1,0 +1,67 @@
+name: Build APK
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      ROZ_KEYSTORE_PASSWORD: ${{ secrets.ROZ_KEYSTORE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Test the rules (repeats, streaks, birthdays, backups)
+        run: ./gradlew :core:test --stacktrace
+
+      - name: Build the APK
+        run: ./gradlew :app:assembleRelease --stacktrace
+
+      - name: Name the APK
+        run: cp app/build/outputs/apk/release/app-release.apk roz.apk
+
+      # Without the signing secret every build would get a different key, and a new APK couldn't
+      # install over the old one without wiping your data. So only publish properly signed builds.
+      - name: Check the signing secret
+        if: env.ROZ_KEYSTORE_PASSWORD == ''
+        run: |
+          echo "::warning::ROZ_KEYSTORE_PASSWORD secret is not set, so this build is not published. Add it under Settings → Secrets and variables → Actions."
+
+      # A release gives a plain .apk link that is easy to open on the phone:
+      # https://github.com/<owner>/<repo>/releases/latest
+      - name: Publish release
+        if: github.event_name != 'pull_request' && env.ROZ_KEYSTORE_PASSWORD != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Roz build ${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          files: roz.apk
+          body: |
+            Install: download roz.apk below on your phone and open it.
+            Built from ${{ github.sha }}.
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: roz-apk
+          path: roz.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-reports
+          path: core/build/reports/tests/
