@@ -1,5 +1,6 @@
 package app.roz.data
 
+import app.roz.core.Settings
 import app.roz.core.BackupPayload
 import app.roz.core.Chore
 import app.roz.core.ChoreAction
@@ -188,7 +189,7 @@ class Repository(private val dao: RozDao) {
 
     // ---- backup ----
 
-    suspend fun snapshot(settings: app.roz.core.Settings): BackupPayload = BackupPayload(
+    suspend fun snapshot(settings: Settings): BackupPayload = BackupPayload(
         createdAt = LocalDateTime.now(),
         habits = dao.habitsNow().map { it.toModel() },
         habitLog = dao.habitDaysNow().map { HabitLog(it.habitId, HabitDay(LocalDate.parse(it.date), it.value, it.skipped)) },

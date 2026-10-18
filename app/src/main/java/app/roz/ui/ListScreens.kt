@@ -1,5 +1,6 @@
 package app.roz.ui
 
+import app.roz.core.OccasionKind
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -122,7 +123,7 @@ private fun AreaChip(label: String, selected: Boolean, onClick: () -> Unit) {
 fun BirthdaysScreen(state: UiState, vm: AppViewModel, onEdit: (EditType, Long?) -> Unit) {
     val context = LocalContext.current
     val next = state.upcoming.firstOrNull()
-    val anniversaries = state.upcoming.count { it.person.kind == app.roz.core.OccasionKind.ANNIVERSARY }
+    val anniversaries = state.upcoming.count { it.person.kind == OccasionKind.ANNIVERSARY }
     var importing by rememberSaveable { mutableStateOf(false) }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 96.dp)) {

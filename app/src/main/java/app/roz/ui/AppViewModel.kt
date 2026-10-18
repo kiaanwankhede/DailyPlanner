@@ -1,5 +1,7 @@
 package app.roz.ui
 
+import app.roz.core.ChoreAction
+import app.roz.core.HabitStats
 import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
@@ -61,7 +63,7 @@ data class UiState(
     val areas: List<String> = emptyList(),
 )
 
-data class HabitRow(val habit: Habit, val stats: app.roz.core.HabitStats, val days: List<HabitDay>)
+data class HabitRow(val habit: Habit, val stats: HabitStats, val days: List<HabitDay>)
 
 data class UiMessage(val text: String, val undo: Undo? = null)
 
@@ -109,7 +111,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             items.chores,
             items.reminders.map { it.reminder },
             people,
-            choresDoneToday = items.choreLog.count { it.date == day && it.action == app.roz.core.ChoreAction.DONE },
+            choresDoneToday = items.choreLog.count { it.date == day && it.action == ChoreAction.DONE },
             remindersDoneToday = items.reminders.count { it.lastDoneOn == day.toString() },
         )
         val setUp = container.secrets.isSetUp()
