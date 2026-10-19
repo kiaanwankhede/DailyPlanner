@@ -43,6 +43,6 @@ Every build is signed with the same key, so a new APK installs over the old one 
 
 ### Signing
 
-`app/roz-release.keystore` is the release key. It is useless without its password, which lives only
-in the GitHub Actions secret **`ROZ_KEYSTORE_PASSWORD`** (Settings → Secrets and variables → Actions).
-CI only publishes a release when that secret is set, so every published APK has the same key.
+`app/roz.keystore` is a fixed key committed to the repo (password `android`), so every CI build is
+signed the same way and a new APK installs over the old one without wiping your data. That is fine
+for a personal, sideloaded app, but it means anyone could build an APK that installs over yours.

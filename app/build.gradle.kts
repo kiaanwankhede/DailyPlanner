@@ -18,28 +18,25 @@ android {
     }
 
     signingConfigs {
-        // The release key lives in the repo, encrypted with a password that only GitHub Actions knows
-        // (the ROZ_KEYSTORE_PASSWORD secret). The same key on every build means a new APK installs
-        // over the old one and keeps your data.
-        create("release") {
-            storeFile = file("roz-release.keystore")
-            storePassword = System.getenv("ROZ_KEYSTORE_PASSWORD")
+        // A fixed key committed to the repo, so every CI build can be installed over the previous one
+        // without uninstalling (which would wipe your data). Fine for a personal, sideloaded app.
+        create("shared") {
+            storeFile = file("roz.keystore")
+            storePassword = "android"
             keyAlias = "roz"
-            keyPassword = System.getenv("ROZ_KEYSTORE_PASSWORD")
+            keyPassword = "android"
         }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("shared")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = if (System.getenv("ROZ_KEYSTORE_PASSWORD").isNullOrEmpty()) {
-                // No secret (e.g. a local build): fall back to the debug key so the build still works.
-                signingConfigs.getByName("debug")
-            } else {
-                signingConfigs.getByName("release")
-            }
+            signingConfig = signingConfigs.getByName("shared")
         }
     }
 
