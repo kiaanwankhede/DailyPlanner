@@ -18,12 +18,19 @@ class Prefs(context: Context) {
     private val _state = MutableStateFlow(read())
     val state: StateFlow<PrefsState> = _state
 
-    private fun read() = PrefsState(
+    private fun read(): PrefsState {
+        // The weekly count starts on 1 January of the year Roz is first used, and stays put after that.
+        if (!prefs.contains("add_prompt_start")) {
+            prefs.edit { putString("add_prompt_start", LocalDate.of(LocalDate.now().year, 1, 1).toString()) }
+        }
+        return PrefsState(
         settings = Settings(
             morningMinute = prefs.getInt("morning", 8 * 60),
             eveningMinute = prefs.getInt("evening", 20 * 60 + 30),
             focus = prefs.getString("focus", null)?.let { runCatching { json.decodeFromString(FocusPick.serializer(), it) }.getOrNull() },
             hideFocusOnLock = prefs.getBoolean("hide_focus_on_lock", false),
+            addPromptOn = prefs.getBoolean("add_prompt_on", true),
+            addPromptStart = prefs.getString("add_prompt_start", null)?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
         ),
         backupUri = prefs.getString("backup_uri", null)?.let(Uri::parse),
         lastBackup = prefs.getLong("last_backup", 0L).takeIf { it > 0 }?.let(Instant::ofEpochMilli),
@@ -31,6 +38,7 @@ class Prefs(context: Context) {
         lastPassphraseCheck = prefs.getString("passphrase_check", null)?.let(LocalDate::parse),
         lastBackupItems = prefs.getInt("last_backup_items", 0),
     )
+    }
 
     private fun update(block: android.content.SharedPreferences.Editor.() -> Unit) {
         prefs.edit(commit = true, action = block)
@@ -46,7 +54,12 @@ class Prefs(context: Context) {
         putInt("evening", settings.eveningMinute)
         putFocus(settings.focus)
         putBoolean("hide_focus_on_lock", settings.hideFocusOnLock)
+        putBoolean("add_prompt_on", settings.addPromptOn)
+        settings.addPromptStart?.let { putString("add_prompt_start", it.toString()) }
     }
+
+    fun setAddPromptOn(on: Boolean) = update { putBoolean("add_prompt_on", on) }
+    fun setAddPromptStart(date: LocalDate) = update { putString("add_prompt_start", date.toString()) }
 
     fun setFocus(pick: FocusPick?) = update { putFocus(pick) }
     fun setHideFocusOnLock(hide: Boolean) = update { putBoolean("hide_focus_on_lock", hide) }

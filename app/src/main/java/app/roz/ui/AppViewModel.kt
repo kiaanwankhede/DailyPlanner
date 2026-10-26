@@ -1,5 +1,9 @@
 package app.roz.ui
 
+import app.roz.core.PromptKind
+import app.roz.core.ItemCounts
+import app.roz.core.AddPrompts
+import app.roz.core.AddPrompt
 import app.roz.core.ChoreAction
 import app.roz.core.HabitStats
 import android.app.Application
@@ -69,6 +73,11 @@ data class UiState(
     val focus: FocusView? = null,
     val focusPick: FocusPick? = null,
     val hideFocusOnLock: Boolean = false,
+    /** The weekly "add one recurring item" quota, or null when it's off or you've caught up. */
+    val addPrompt: AddPrompt? = null,
+    val addSuggestion: PromptKind = PromptKind.BIRTHDAY,
+    val addPromptOn: Boolean = true,
+    val addPromptStart: LocalDate = LocalDate.now(),
 )
 
 data class HabitRow(val habit: Habit, val stats: HabitStats, val days: List<HabitDay>)
@@ -123,6 +132,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             remindersDoneToday = items.reminders.count { it.lastDoneOn == day.toString() },
         )
         val setUp = container.secrets.isSetUp()
+        val counts = ItemCounts(
+            habits = items.habits.size,
+            chores = items.chores.size,
+            people = people.size,
+            repeatingReminders = items.reminders.count { it.reminder.rule != null && it.reminder.doneAt == null },
+        )
+        val promptStart = prefs.settings.addPromptStart ?: LocalDate.of(day.year, 1, 1)
+        val addPrompt = if (prefs.settings.addPromptOn) AddPrompts.status(promptStart, day, counts).takeIf { it.behind > 0 } else null
         val focusView = Focus.resolve(
             prefs.settings.focus, day, habitRows.map { HabitToday(it.habit, it.stats) },
             items.chores, items.reminders.map { it.reminder }, people,
@@ -146,6 +163,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             focus = focusView,
             focusPick = focusView?.pick,
             hideFocusOnLock = prefs.settings.hideFocusOnLock,
+            addPrompt = addPrompt,
+            addSuggestion = AddPrompts.suggest(counts),
+            addPromptOn = prefs.settings.addPromptOn,
+            addPromptStart = promptStart,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UiState())
 
@@ -248,6 +269,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             null
         }
     }
+
+    fun setAddPromptOn(on: Boolean) = container.prefs.setAddPromptOn(on)
+
+    fun setAddPromptStart(date: LocalDate) = container.prefs.setAddPromptStart(date)
 
     fun setHideFocusOnLock(hide: Boolean) {
         container.prefs.setHideFocusOnLock(hide)

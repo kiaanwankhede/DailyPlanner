@@ -29,6 +29,10 @@ data class Settings(
     val focus: FocusPick? = null,
     /** Show only "Top priority" (not what it is) when the phone is locked. */
     val hideFocusOnLock: Boolean = false,
+    /** The weekly "add one recurring item" prompt. */
+    val addPromptOn: Boolean = true,
+    /** The day the weekly count starts from; null means 1 January of the current year. */
+    val addPromptStart: Day? = null,
 )
 
 @Serializable

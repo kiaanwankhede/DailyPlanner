@@ -153,6 +153,24 @@ fun SettingsScreen(state: UiState, vm: AppViewModel, onBack: () -> Unit) {
                     }
                     Switch(checked = state.hideFocusOnLock, onCheckedChange = { vm.setHideFocusOnLock(it) })
                 }
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 8.dp).clickable { vm.setAddPromptOn(!state.addPromptOn) },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Weekly prompt to add a recurring item", color = palette.ink, fontSize = 15.sp)
+                        Text(
+                            "Aim for one new habit, chore or birthday a week. It stays on Today until you've caught up.",
+                            color = palette.muted, fontSize = 12.sp,
+                        )
+                    }
+                    Switch(checked = state.addPromptOn, onCheckedChange = { vm.setAddPromptOn(it) })
+                }
+                if (state.addPromptOn) {
+                    SettingRow("Counting since", state.addPromptStart.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH))) {
+                        pickDate(context, state.addPromptStart) { vm.setAddPromptStart(it) }
+                    }
+                }
             }
         }
 

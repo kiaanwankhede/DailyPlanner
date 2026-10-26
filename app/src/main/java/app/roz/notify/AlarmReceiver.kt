@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import app.roz.RozApplication
+import app.roz.core.AddPrompts
 import app.roz.core.BackupHealth
 import app.roz.core.FocusType
 import app.roz.core.Occasions
@@ -48,6 +49,10 @@ class AlarmReceiver : BroadcastReceiver() {
                 val state = container.prefs.state.value
                 if (container.secrets.isSetUp() && BackupHealth.passphraseCheckDue(state.lastPassphraseCheck, today)) {
                     Notifications.passphraseCheck(context)
+                }
+                container.addPrompt(today)?.let { (prompt, suggestion) ->
+                    val start = container.prefs.settings.addPromptStart ?: java.time.LocalDate.of(today.year, 1, 1)
+                    if (AddPrompts.isNewWeekDay(start, today)) Notifications.addPrompt(context, prompt, suggestion)
                 }
                 alarms.scheduleDaily(MORNING, container.prefs.settings.morningMinute)
             }

@@ -146,7 +146,7 @@ Rules for the awkward cases:
 
 | Version | Scope |
 |---|---|
-| **v1** | Everything above, plus top priority (§11): Today, habits (streak + strength + free skip), chores (all repeat rules), reminders, birthdays, notifications, encrypted backups with recovery code, exports, undo, recently deleted, dark mode. |
+| **v1** | Everything above, plus top priority (§11) and the weekly add prompt (§12): Today, habits (streak + strength + free skip), chores (all repeat rules), reminders, birthdays, notifications, encrypted backups with recovery code, exports, undo, recently deleted, dark mode. |
 | v2 | Home-screen widget; "how dirty" bar on rolling chores (Tody-style); day timeline view; notes on a day; birthday extras (milestones, gift price/link, what you gave last year); habit insights; Health Connect auto-tick for step habits (as in Sehat); reminders every N hours. |
 | Later | Indian festivals and lunar dates; linking with Kharcha (a bill payment ticks its reminder); family sharing. |
 | Not planned | Game mechanics, leaderboards, AI coaching. |
@@ -174,4 +174,24 @@ shows first on Today and stays pinned on the lock screen until you finish or rem
 - **Kept up to date.** The pinned card is refreshed after every change, at the morning summary,
   after a reboot or update, and after a restore.
 - **Backups.** The pick and the lock-screen setting are part of the backup.
+
+## 12. Weekly "add one recurring item" prompt
+
+A nudge to keep building up what Roz tracks: aim for **one new recurring item a week**, counted from
+**1 January**, and keep prompting in the task list until you've caught up.
+
+- **The count.** One item is due on the start day (1 January) and one more every 7 days after, so
+  1–7 Jan is week 1, 8–14 Jan week 2, and so on. On 26 Oct that is 43.
+- **What counts as added.** Everything you have now: habits, chores, birthdays and anniversaries,
+  and repeating reminders (one-off reminders don't count). Deleted items don't count.
+- **The gap.** *to go* = items due so far − items you have, never below zero. Add one and it drops
+  by one; a new week raises it by one; at zero the prompt disappears until the next week.
+- **In the task list.** A row in the **Today** section with a dashed blue edge, "Add 1 recurring
+  item", "33 to go · 1 a week since 1 Jan" and the number on the right. It is not ticked off: tap it
+  to open the Add form, preselected to the kind you have the fewest of (birthday, habit or chore).
+- **Weekly notification.** On the first day of each 7-day week, at the morning-summary time, if
+  you're behind: "New week: add 1 recurring item".
+- **Settings.** A switch to turn it off, and the day the count starts from (default 1 January of
+  the year Roz was first opened; it does not reset by itself on the next 1 January).
+- **Backups.** The switch and the start day are part of the backup.
 

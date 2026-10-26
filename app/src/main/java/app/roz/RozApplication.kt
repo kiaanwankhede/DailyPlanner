@@ -3,11 +3,15 @@ package app.roz
 import android.app.Application
 import app.roz.backup.BackupManager
 import app.roz.backup.BackupWorker
+import app.roz.core.AddPrompt
+import app.roz.core.AddPrompts
 import app.roz.core.Focus
 import app.roz.core.FocusPick
 import app.roz.core.FocusType
 import app.roz.core.FocusView
 import app.roz.core.HabitMath
+import app.roz.core.ItemCounts
+import app.roz.core.PromptKind
 import app.roz.core.HabitToday
 import app.roz.core.TodayPlan
 import app.roz.core.TodayPlanner
@@ -49,6 +53,24 @@ class AppContainer(private val app: Application) {
     val repository = Repository(RozDatabase.create(app).dao())
     val backup = BackupManager(app, repository, prefs, secrets)
     val alarms = Alarms(app, repository, prefs)
+
+    // ---- weekly "add one recurring item" prompt (SPEC.md §12) ----
+
+    suspend fun itemCounts(): ItemCounts = ItemCounts(
+        habits = repository.habitsNow().size,
+        chores = repository.choresNow().size,
+        people = repository.peopleNow().size,
+        repeatingReminders = repository.remindersNow().count { it.reminder.rule != null && it.reminder.doneAt == null },
+    )
+
+    /** How far behind the weekly quota is today, or null if the prompt is off or the quota is met. */
+    suspend fun addPrompt(today: LocalDate): Pair<AddPrompt, PromptKind>? {
+        val settings = prefs.settings
+        if (!settings.addPromptOn) return null
+        val counts = itemCounts()
+        val status = AddPrompts.status(settings.addPromptStart ?: LocalDate.of(today.year, 1, 1), today, counts)
+        return if (status.behind > 0) status to AddPrompts.suggest(counts) else null
+    }
 
     // ---- top priority (SPEC.md §11) ----
 

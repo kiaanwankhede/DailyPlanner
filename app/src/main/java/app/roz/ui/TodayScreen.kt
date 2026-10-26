@@ -2,6 +2,10 @@
 
 package app.roz.ui
 
+import app.roz.core.PromptKind
+import app.roz.core.AddPrompts
+import app.roz.core.AddPrompt
+import androidx.compose.material.icons.filled.Add
 import app.roz.core.FocusView
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.TextButton
@@ -134,7 +138,7 @@ fun TodayScreen(
             }
         }
 
-        if (plan.choresToday.isNotEmpty() || plan.remindersToday.isNotEmpty()) {
+        if (plan.choresToday.isNotEmpty() || plan.remindersToday.isNotEmpty() || state.addPrompt != null) {
             item { SectionLabel("Today") }
             items(plan.remindersToday, key = { "r${it.id}" }) { r ->
                 remindersById[r.id]?.let { ReminderRow(it, state.today, vm, onEdit, showKind = true, focus = state.focusPick) }
@@ -143,6 +147,21 @@ fun TodayScreen(
             items(plan.choresToday, key = { "c${it.chore.id}" }) {
                 ChoreRow(it, state.today, vm, onEdit, showKind = true, focus = state.focusPick)
                 SmallGap()
+            }
+            state.addPrompt?.let { prompt ->
+                item(key = "addprompt") {
+                    AddPromptRow(prompt) {
+                        onEdit(
+                            when (state.addSuggestion) {
+                                PromptKind.BIRTHDAY -> EditType.BIRTHDAY
+                                PromptKind.HABIT -> EditType.HABIT
+                                PromptKind.CHORE -> EditType.CHORE
+                            },
+                            null,
+                        )
+                    }
+                    SmallGap()
+                }
             }
         }
 
@@ -160,7 +179,7 @@ fun TodayScreen(
         }
 
         if (state.loaded && plan.habits.isEmpty() && plan.overdue.isEmpty() && plan.choresToday.isEmpty() &&
-            plan.remindersToday.isEmpty() && plan.birthdays.isEmpty()
+            plan.remindersToday.isEmpty() && plan.birthdays.isEmpty() && state.addPrompt == null
         ) {
             item {
                 EmptyNote(
@@ -176,6 +195,39 @@ fun TodayScreen(
 
     if (checkPassphrase) {
         PassphraseCheckDialog(vm, onDismiss = { checkPassphrase = false })
+    }
+}
+
+/**
+ * The weekly "add one recurring item" prompt, sitting in the task list with a dashed edge. It isn't
+ * ticked off: the count goes down as you add things, and it's gone once you've caught up (SPEC.md §12).
+ */
+@Composable
+private fun AddPromptRow(prompt: AddPrompt, onClick: () -> Unit) {
+    ItemCard(
+        border = palette.chore.copy(alpha = 0.55f),
+        fill = palette.choreSoft,
+        modifier = Modifier.clickable(onClick = onClick),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(44.dp).semantics { contentDescription = "Add a recurring item" },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    Modifier.size(28.dp).clip(CircleShape).border(2.dp, palette.chore, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Filled.Add, null, tint = palette.chore, modifier = Modifier.size(18.dp)) }
+            }
+            TitleAndMeta(AddPrompts.title(prompt)) {
+                KindChip("Weekly", palette.card, palette.chore)
+                MetaText(AddPrompts.detail(prompt), palette.chore)
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("${prompt.behind}", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = palette.chore)
+                Text("to go", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = palette.chore)
+            }
+        }
     }
 }
 

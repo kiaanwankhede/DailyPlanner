@@ -15,9 +15,12 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import app.roz.MainActivity
 import app.roz.R
+import app.roz.core.AddPrompt
+import app.roz.core.AddPrompts
 import app.roz.core.FocusView
 import app.roz.core.Habit
 import app.roz.core.Occasions
+import app.roz.core.PromptKind
 import app.roz.core.Reminder
 import app.roz.core.Reminders
 import app.roz.core.Summaries
@@ -35,6 +38,7 @@ object Notifications {
     const val ID_EVENING = 2
     const val ID_PASSPHRASE = 3
     const val ID_FOCUS = 4
+    const val ID_ADD_PROMPT = 5
     fun reminderId(id: Long) = 200_000 + id.toInt()
     fun habitId(id: Long) = 300_000 + id.toInt()
     private fun birthdayId(id: Long) = 100_000 + id.toInt()
@@ -83,6 +87,12 @@ object Notifications {
             .addAction(0, "In 1 hour", action(context, AlarmReceiver.HABIT_SNOOZE, habit.id))
         post(context, habitId(habit.id), builder)
     }
+
+    /** The once-a-week nudge to add one more recurring item. */
+    fun addPrompt(context: Context, prompt: AddPrompt, suggestion: PromptKind) = post(
+        context, ID_ADD_PROMPT,
+        base(context, SUMMARY, "New week: ${AddPrompts.title(prompt).replaceFirstChar { it.lowercase() }}", AddPrompts.notificationBody(prompt, suggestion)),
+    )
 
     /**
      * The pinned top-priority card. With [hideDetails] only "Top priority" shows while the phone is
