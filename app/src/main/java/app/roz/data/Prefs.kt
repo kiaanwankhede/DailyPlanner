@@ -3,7 +3,9 @@ package app.roz.data
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.edit
+import app.roz.core.FocusPick
 import app.roz.core.Settings
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import java.time.Instant
@@ -12,11 +14,17 @@ import java.time.LocalDate
 /** Small settings and backup bookkeeping. [state] lets screens react when any of it changes. */
 class Prefs(context: Context) {
     private val prefs = context.getSharedPreferences("roz", Context.MODE_PRIVATE)
+    private val json = Json { ignoreUnknownKeys = true }
     private val _state = MutableStateFlow(read())
     val state: StateFlow<PrefsState> = _state
 
     private fun read() = PrefsState(
-        settings = Settings(prefs.getInt("morning", 8 * 60), prefs.getInt("evening", 20 * 60 + 30)),
+        settings = Settings(
+            morningMinute = prefs.getInt("morning", 8 * 60),
+            eveningMinute = prefs.getInt("evening", 20 * 60 + 30),
+            focus = prefs.getString("focus", null)?.let { runCatching { json.decodeFromString(FocusPick.serializer(), it) }.getOrNull() },
+            hideFocusOnLock = prefs.getBoolean("hide_focus_on_lock", false),
+        ),
         backupUri = prefs.getString("backup_uri", null)?.let(Uri::parse),
         lastBackup = prefs.getLong("last_backup", 0L).takeIf { it > 0 }?.let(Instant::ofEpochMilli),
         lastBackupError = prefs.getString("last_backup_error", null),
@@ -36,6 +44,15 @@ class Prefs(context: Context) {
     fun setSettings(settings: Settings) = update {
         putInt("morning", settings.morningMinute)
         putInt("evening", settings.eveningMinute)
+        putFocus(settings.focus)
+        putBoolean("hide_focus_on_lock", settings.hideFocusOnLock)
+    }
+
+    fun setFocus(pick: FocusPick?) = update { putFocus(pick) }
+    fun setHideFocusOnLock(hide: Boolean) = update { putBoolean("hide_focus_on_lock", hide) }
+
+    private fun android.content.SharedPreferences.Editor.putFocus(pick: FocusPick?) {
+        if (pick == null) remove("focus") else putString("focus", json.encodeToString(FocusPick.serializer(), pick))
     }
 
     fun setBackupUri(uri: Uri?) = update { putString("backup_uri", uri?.toString()) }

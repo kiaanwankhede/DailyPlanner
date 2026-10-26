@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import app.roz.RozApplication
 import app.roz.core.BackupHealth
+import app.roz.core.FocusType
 import app.roz.core.Occasions
 import app.roz.core.Reminders
 import app.roz.core.Summaries
@@ -40,6 +41,7 @@ class AlarmReceiver : BroadcastReceiver() {
         val now = LocalDateTime.now()
         when (action) {
             MORNING -> {
+                container.refreshFocus()
                 val plan = container.todayPlan(today)
                 Summaries.morning(plan)?.let { Notifications.summary(context, it, evening = false) }
                 Occasions.alertsFor(repo.peopleNow(), today).forEach { Notifications.birthday(context, it) }
@@ -68,6 +70,7 @@ class AlarmReceiver : BroadcastReceiver() {
                 }
                 Notifications.cancel(context, Notifications.reminderId(id))
                 repo.reminder(id)?.let { alarms.schedule(it) }
+                if (action == REMINDER_DONE) container.clearFocusIf(FocusType.REMINDER, id) else container.refreshFocus()
             }
             HABIT -> {
                 val habit = repo.habit(id) ?: return
@@ -81,12 +84,15 @@ class AlarmReceiver : BroadcastReceiver() {
                 val plan = container.todayPlan(today)
                 if (plan.habits.firstOrNull { it.habit.id == id }?.stats?.doneToday != true) repo.tickHabit(habit, today)
                 Notifications.cancel(context, Notifications.habitId(id))
+                container.refreshFocus()
             }
             HABIT_SNOOZE -> {
                 val habit = repo.habit(id) ?: return
                 Notifications.cancel(context, Notifications.habitId(id))
                 alarms.schedule(habit, now.plusHours(1))
             }
+            FOCUS_DONE -> container.completeFocus()
+            FOCUS_CLEAR -> container.setFocus(null)
         }
     }
 
@@ -100,6 +106,8 @@ class AlarmReceiver : BroadcastReceiver() {
         const val HABIT = "app.roz.HABIT"
         const val HABIT_DONE = "app.roz.HABIT_DONE"
         const val HABIT_SNOOZE = "app.roz.HABIT_SNOOZE"
+        const val FOCUS_DONE = "app.roz.FOCUS_DONE"
+        const val FOCUS_CLEAR = "app.roz.FOCUS_CLEAR"
 
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -115,7 +123,9 @@ class SystemEventsReceiver : BroadcastReceiver() {
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                (context.applicationContext as RozApplication).container.alarms.rescheduleAll()
+                val container = (context.applicationContext as RozApplication).container
+                container.alarms.rescheduleAll()
+                container.refreshFocus()
             } finally {
                 pending.finish()
             }

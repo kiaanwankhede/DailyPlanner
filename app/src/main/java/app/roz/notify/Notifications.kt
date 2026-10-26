@@ -2,6 +2,7 @@ package app.roz.notify
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -14,6 +15,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import app.roz.MainActivity
 import app.roz.R
+import app.roz.core.FocusView
 import app.roz.core.Habit
 import app.roz.core.Occasions
 import app.roz.core.Reminder
@@ -27,10 +29,12 @@ object Notifications {
     private const val REMINDERS = "reminders"
     private const val BIRTHDAYS = "birthdays"
     private const val HABITS = "habits"
+    private const val FOCUS = "focus"
 
     const val ID_MORNING = 1
     const val ID_EVENING = 2
     const val ID_PASSPHRASE = 3
+    const val ID_FOCUS = 4
     fun reminderId(id: Long) = 200_000 + id.toInt()
     fun habitId(id: Long) = 300_000 + id.toInt()
     private fun birthdayId(id: Long) = 100_000 + id.toInt()
@@ -43,6 +47,12 @@ object Notifications {
                 NotificationChannel(REMINDERS, "Reminders", NotificationManager.IMPORTANCE_HIGH),
                 NotificationChannel(BIRTHDAYS, "Birthdays and anniversaries", NotificationManager.IMPORTANCE_DEFAULT),
                 NotificationChannel(HABITS, "Habit reminders", NotificationManager.IMPORTANCE_DEFAULT),
+                // Quiet and always on the lock screen: it is a pinned reminder, not an alert.
+                NotificationChannel(FOCUS, "Top priority", NotificationManager.IMPORTANCE_LOW).apply {
+                    description = "Your one top-priority item, pinned to the lock screen"
+                    lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                    setShowBadge(false)
+                },
             ),
         )
     }
@@ -72,6 +82,30 @@ object Notifications {
             .addAction(0, "Done", action(context, AlarmReceiver.HABIT_DONE, habit.id))
             .addAction(0, "In 1 hour", action(context, AlarmReceiver.HABIT_SNOOZE, habit.id))
         post(context, habitId(habit.id), builder)
+    }
+
+    /**
+     * The pinned top-priority card. With [hideDetails] only "Top priority" shows while the phone is
+     * locked; the item itself appears once it is unlocked.
+     */
+    fun focus(context: Context, view: FocusView, hideDetails: Boolean) {
+        val builder = base(context, FOCUS, view.title, "TOP PRIORITY · ${view.detail}")
+            .setSubText(view.kindLabel)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setOngoing(true)
+            .setAutoCancel(false)
+            .setOnlyAlertOnce(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+        if (view.canComplete) builder.addAction(0, view.doneLabel, action(context, AlarmReceiver.FOCUS_DONE, 0))
+        builder.addAction(0, "Remove", action(context, AlarmReceiver.FOCUS_CLEAR, 0))
+        if (hideDetails) {
+            builder.setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            builder.setPublicVersion(
+                base(context, FOCUS, "Top priority", "Unlock to see it")
+                    .setOngoing(true).setAutoCancel(false).setVisibility(NotificationCompat.VISIBILITY_PUBLIC).build(),
+            )
+        }
+        post(context, ID_FOCUS, builder)
     }
 
     fun cancel(context: Context, id: Int) = NotificationManagerCompat.from(context).cancel(id)

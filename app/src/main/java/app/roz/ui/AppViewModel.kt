@@ -15,6 +15,10 @@ import app.roz.core.Chore
 import app.roz.core.ChoreLogEntry
 import app.roz.core.ChoreSchedule
 import app.roz.core.ChoreToday
+import app.roz.core.Focus
+import app.roz.core.FocusPick
+import app.roz.core.FocusType
+import app.roz.core.FocusView
 import app.roz.core.Habit
 import app.roz.core.HabitDay
 import app.roz.core.HabitMath
@@ -61,6 +65,10 @@ data class UiState(
     val backupStale: Boolean = false,
     val passphraseCheckDue: Boolean = false,
     val areas: List<String> = emptyList(),
+    /** The top-priority item as it looks today, or null if none is set (or it no longer applies). */
+    val focus: FocusView? = null,
+    val focusPick: FocusPick? = null,
+    val hideFocusOnLock: Boolean = false,
 )
 
 data class HabitRow(val habit: Habit, val stats: HabitStats, val days: List<HabitDay>)
@@ -115,6 +123,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             remindersDoneToday = items.reminders.count { it.lastDoneOn == day.toString() },
         )
         val setUp = container.secrets.isSetUp()
+        val focusView = Focus.resolve(
+            prefs.settings.focus, day, habitRows.map { HabitToday(it.habit, it.stats) },
+            items.chores, items.reminders.map { it.reminder }, people,
+        )
         UiState(
             loaded = true,
             today = day,
@@ -131,13 +143,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             backupStale = BackupHealth.isStale(prefs.lastBackup, Instant.now()),
             passphraseCheckDue = setUp && BackupHealth.passphraseCheckDue(prefs.lastPassphraseCheck, day),
             areas = items.chores.map { it.area }.filter { it.isNotBlank() }.distinct().sorted(),
+            focus = focusView,
+            focusPick = focusView?.pick,
+            hideFocusOnLock = prefs.settings.hideFocusOnLock,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UiState())
 
     private fun act(message: String? = null, block: suspend () -> Undo?) {
         viewModelScope.launch {
             val undo = block()
-            if (message != null) _messages.emit(UiMessage(message, undo))
+            container.refreshFocus()
+            val wrapped: Undo? = undo?.let { u ->
+                val again: Undo = { u(); container.refreshFocus() }
+                again
+            }
+            if (message != null) _messages.emit(UiMessage(message, wrapped))
         }
     }
 
@@ -147,20 +167,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun untickHabit(habit: Habit) = act { repo.untickHabit(habit, today.value) }
     fun skipHabit(habit: Habit) = act("Skipped today: ${habit.name}") { repo.skipHabit(habit, today.value) }
 
-    fun saveHabit(habit: Habit) = act {
+    fun saveHabit(habit: Habit, priority: Boolean) = act {
         val id = repo.saveHabit(habit)
         repo.habit(id)?.let { alarms.schedule(it) }
+        applyPriority(FocusType.HABIT, id, priority && Focus.canBePriority(habit))
         null
     }
 
     // ---- chores ----
 
-    fun completeChore(chore: Chore) = act("Done: ${chore.name}") { repo.completeChore(chore, today.value) }
+    fun completeChore(chore: Chore) = act("Done: ${chore.name}") {
+        val undo = repo.completeChore(chore, today.value)
+        container.clearFocusIf(FocusType.CHORE, chore.id)
+        undo
+    }
     fun skipChore(chore: Chore) = act("Skipped this time: ${chore.name}") { repo.skipChore(chore, today.value) }
     fun pauseChore(chore: Chore, paused: Boolean) =
         act(if (paused) "Paused: ${chore.name}" else "Resumed: ${chore.name}") { repo.setChorePaused(chore, paused, today.value) }
 
-    fun saveChore(chore: Chore) = act { repo.saveChore(chore); null }
+    fun saveChore(chore: Chore, priority: Boolean) = act {
+        val id = repo.saveChore(chore)
+        applyPriority(FocusType.CHORE, id, priority)
+        null
+    }
 
     // ---- reminders ----
 
@@ -169,6 +198,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun completeReminder(stored: StoredReminder) = act("Done: ${stored.reminder.title}") {
         val undo = repo.completeReminder(stored, LocalDateTime.now())
         rescheduleReminder(stored.reminder.id)
+        container.clearFocusIf(FocusType.REMINDER, stored.reminder.id)
         val wrapped: Undo = { undo(); rescheduleReminder(stored.reminder.id) }
         wrapped
     }
@@ -182,15 +212,58 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             wrapped
         }
 
-    fun saveReminder(reminder: Reminder) = act {
+    fun saveReminder(reminder: Reminder, priority: Boolean) = act {
         val id = repo.saveReminder(reminder)
         rescheduleReminder(id)
+        applyPriority(FocusType.REMINDER, id, priority)
         null
     }
 
     // ---- people ----
 
-    fun savePerson(person: Person) = act { repo.savePerson(person); null }
+    fun savePerson(person: Person, priority: Boolean) = act {
+        val id = repo.savePerson(person)
+        applyPriority(FocusType.PERSON, id, priority)
+        null
+    }
+
+    // ---- top priority ----
+
+    /** Marks one item as the top priority; the previous one (if any) is replaced. */
+    fun setFocus(type: FocusType, id: Long) = act {
+        applyPriority(type, id, on = true)
+        null
+    }
+
+    fun clearFocus() = act {
+        container.setFocus(null)
+        null
+    }
+
+    /** The Done button on the Today card. */
+    fun completeFocus() {
+        val title = state.value.focus?.title
+        act(title?.let { "Done: $it" }) {
+            container.completeFocus()
+            null
+        }
+    }
+
+    fun setHideFocusOnLock(hide: Boolean) {
+        container.prefs.setHideFocusOnLock(hide)
+        viewModelScope.launch { container.refreshFocus() }
+    }
+
+    private suspend fun applyPriority(type: FocusType, id: Long, on: Boolean) {
+        val current = container.prefs.settings.focus
+        if (on) {
+            // A birthday stays on top until its day is over.
+            val until = if (type == FocusType.PERSON) repo.person(id)?.let { Occasions.next(it, LocalDate.now()).date } else null
+            container.setFocus(FocusPick(type, id, until))
+        } else if (current != null && current.type == type && current.id == id) {
+            container.setFocus(null)
+        }
+    }
 
     fun toggleGift(person: Person, index: Int) = act {
         val gifts = person.gifts.toMutableList()
@@ -266,6 +339,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun restore(payload: BackupPayload) = viewModelScope.launch {
         container.backup.restore(payload)
         alarms.rescheduleAll()
+        container.refreshFocus()
         BackupWorker.scheduleSoon(getApplication())
         _messages.emit(UiMessage("Restored your backup"))
     }

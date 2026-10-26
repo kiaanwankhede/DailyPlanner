@@ -1,5 +1,7 @@
 package app.roz.ui
 
+import androidx.compose.material3.Switch
+import androidx.compose.foundation.clickable
 import android.Manifest
 import android.content.Intent
 import android.net.Uri
@@ -137,6 +139,19 @@ fun SettingsScreen(state: UiState, vm: AppViewModel, onBack: () -> Unit) {
                 }
                 SettingRow("Evening nudge for open habits", s?.let { Reminders.timeLabel(it.eveningMinute) } ?: "") {
                     pickTime(context, s?.eveningMinute ?: (20 * 60 + 30)) { vm.setEvening(it) }
+                }
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 8.dp).clickable { vm.setHideFocusOnLock(!state.hideFocusOnLock) },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Hide top priority on lock screen", color = palette.ink, fontSize = 15.sp)
+                        Text(
+                            "The lock screen then only says “Top priority”. The details show once you unlock.",
+                            color = palette.muted, fontSize = 12.sp,
+                        )
+                    }
+                    Switch(checked = state.hideFocusOnLock, onCheckedChange = { vm.setHideFocusOnLock(it) })
                 }
             }
         }

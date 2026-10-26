@@ -86,7 +86,7 @@ fun ChoresScreen(state: UiState, vm: AppViewModel, onEdit: (EditType, Long?) -> 
             if (list.isNotEmpty()) {
                 item(key = "h$group") { SectionLabel(labels.getValue(group), if (group == ChoreGroup.OVERDUE) palette.late else palette.muted) }
                 items(list, key = { "c${it.chore.id}" }) {
-                    ChoreRow(it, state.today, vm, onEdit)
+                    ChoreRow(it, state.today, vm, onEdit, focus = state.focusPick)
                     SmallGap()
                 }
             }
@@ -95,7 +95,7 @@ fun ChoresScreen(state: UiState, vm: AppViewModel, onEdit: (EditType, Long?) -> 
         if (paused.isNotEmpty()) {
             item(key = "hp") { SectionLabel("Paused") }
             items(paused, key = { "p${it.chore.id}" }) {
-                ChoreRow(it, state.today, vm, onEdit)
+                ChoreRow(it, state.today, vm, onEdit, focus = state.focusPick)
                 SmallGap()
             }
         }
@@ -263,7 +263,7 @@ fun RemindersScreen(state: UiState, vm: AppViewModel, onEdit: (EditType, Long?) 
         if (showDone) {
             if (done.isEmpty()) item { EmptyNote("Finished one-off reminders show up here.") }
             items(done, key = { it.reminder.id }) {
-                ReminderRow(it, today, vm, onEdit)
+                ReminderRow(it, today, vm, onEdit, focus = state.focusPick)
                 SmallGap()
             }
         } else {
@@ -272,7 +272,7 @@ fun RemindersScreen(state: UiState, vm: AppViewModel, onEdit: (EditType, Long?) 
                 if (list.isNotEmpty()) {
                     item(key = "h$label") { SectionLabel(label) }
                     items(list, key = { it.reminder.id }) {
-                        ReminderRow(it, today, vm, onEdit, expanded = label == "Today" && it == todayList.first())
+                        ReminderRow(it, today, vm, onEdit, expanded = label == "Today" && it == todayList.first(), focus = state.focusPick)
                         SmallGap()
                     }
                 }

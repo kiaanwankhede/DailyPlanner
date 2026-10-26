@@ -146,7 +146,32 @@ Rules for the awkward cases:
 
 | Version | Scope |
 |---|---|
-| **v1** | Everything above: Today, habits (streak + strength + free skip), chores (all repeat rules), reminders, birthdays, notifications, encrypted backups with recovery code, exports, undo, recently deleted, dark mode. |
+| **v1** | Everything above, plus top priority (§11): Today, habits (streak + strength + free skip), chores (all repeat rules), reminders, birthdays, notifications, encrypted backups with recovery code, exports, undo, recently deleted, dark mode. |
 | v2 | Home-screen widget; "how dirty" bar on rolling chores (Tody-style); day timeline view; notes on a day; birthday extras (milestones, gift price/link, what you gave last year); habit insights; Health Connect auto-tick for step habits (as in Sehat); reminders every N hours. |
 | Later | Indian festivals and lunar dates; linking with Kharcha (a bill payment ticks its reminder); family sharing. |
 | Not planned | Game mechanics, leaderboards, AI coaching. |
+
+## 11. Top priority
+
+Any one habit, chore, reminder, birthday or anniversary can be marked as **the** top priority. It
+shows first on Today and stays pinned on the lock screen until you finish or remove it.
+
+- **One at a time.** Marking another item replaces the current one (the form says so).
+- **How to set it.** The *Top priority* switch at the end of every Add/Edit form (also for a new
+  item), or long-press a chore or reminder and choose *Make top priority*.
+- **On Today.** A dark card above the habits with *TOP PRIORITY*, the item, how late or when it is
+  due, and **Done** and **Remove**. Birthdays and anniversaries only have **Remove**.
+- **On the lock screen.** A quiet, pinned notification (channel *Top priority*, no sound) with
+  **Done** and **Remove** buttons. Android phones have no real lock-screen widgets, so a pinned
+  notification is the way. It follows the phone's own lock-screen notification setting.
+- **Privacy.** *Settings → Hide top priority on lock screen* shows only "Top priority · Unlock to
+  see it" until the phone is unlocked.
+- **When it ends.** Finishing a chore or reminder ends its time on top. A yes/no habit ends when
+  done today; a counting habit ("8 glasses") stays, updating "5 of 8 today", until it reaches the
+  target. A birthday stays until its day is over. Deleting or pausing the item also ends it.
+- **Not allowed.** "At most" habits never finish until the day ends, so they can't be the top
+  priority.
+- **Kept up to date.** The pinned card is refreshed after every change, at the morning summary,
+  after a reboot or update, and after a restore.
+- **Backups.** The pick and the lock-screen setting are part of the backup.
+

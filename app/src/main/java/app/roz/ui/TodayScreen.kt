@@ -2,6 +2,12 @@
 
 package app.roz.ui
 
+import app.roz.core.FocusView
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -96,6 +102,13 @@ fun TodayScreen(
             }
         }
 
+        state.focus?.let { f ->
+            item(key = "focus") {
+                FocusCard(f, onDone = { vm.completeFocus() }, onRemove = { vm.clearFocus() })
+                Spacer(Modifier.height(4.dp))
+            }
+        }
+
         if (plan.habits.isNotEmpty()) {
             item {
                 Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -116,7 +129,7 @@ fun TodayScreen(
         if (plan.overdue.isNotEmpty()) {
             item { SectionLabel("Overdue", palette.late) }
             items(plan.overdue, key = { "o${it.chore.id}" }) {
-                ChoreRow(it, state.today, vm, onEdit, showKind = true)
+                ChoreRow(it, state.today, vm, onEdit, showKind = true, focus = state.focusPick)
                 SmallGap()
             }
         }
@@ -124,11 +137,11 @@ fun TodayScreen(
         if (plan.choresToday.isNotEmpty() || plan.remindersToday.isNotEmpty()) {
             item { SectionLabel("Today") }
             items(plan.remindersToday, key = { "r${it.id}" }) { r ->
-                remindersById[r.id]?.let { ReminderRow(it, state.today, vm, onEdit, showKind = true) }
+                remindersById[r.id]?.let { ReminderRow(it, state.today, vm, onEdit, showKind = true, focus = state.focusPick) }
                 SmallGap()
             }
             items(plan.choresToday, key = { "c${it.chore.id}" }) {
-                ChoreRow(it, state.today, vm, onEdit, showKind = true)
+                ChoreRow(it, state.today, vm, onEdit, showKind = true, focus = state.focusPick)
                 SmallGap()
             }
         }
@@ -163,6 +176,39 @@ fun TodayScreen(
 
     if (checkPassphrase) {
         PassphraseCheckDialog(vm, onDismiss = { checkPassphrase = false })
+    }
+}
+
+/** The top-priority item, big and dark so it can't be missed (SPEC.md §11). */
+@Composable
+private fun FocusCard(view: FocusView, onDone: () -> Unit, onRemove: () -> Unit) {
+    ItemCard(fill = palette.ink, contentPadding = PaddingValues(16.dp), modifier = Modifier.padding(top = 4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Star, null, tint = palette.ground, modifier = Modifier.size(16.dp))
+            Text(
+                "TOP PRIORITY",
+                modifier = Modifier.padding(start = 6.dp).weight(1f),
+                fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.6.sp, color = palette.ground.copy(alpha = 0.8f),
+            )
+            Text(view.kindLabel, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = palette.ground.copy(alpha = 0.8f))
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(view.title, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = palette.ground)
+        Text(view.detail, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = palette.ground.copy(alpha = 0.85f))
+        Spacer(Modifier.height(12.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (view.canComplete) {
+                Button(
+                    onClick = onDone,
+                    modifier = Modifier.height(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = palette.ground, contentColor = palette.ink),
+                ) { Text(view.doneLabel, fontWeight = FontWeight.ExtraBold) }
+            }
+            TextButton(onClick = onRemove, modifier = Modifier.height(44.dp)) {
+                Text("Remove", color = palette.ground, fontWeight = FontWeight.Bold)
+            }
+        }
     }
 }
 

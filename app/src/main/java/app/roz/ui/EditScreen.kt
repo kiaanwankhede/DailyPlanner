@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.roz.core.Chore
 import app.roz.core.ChoreSchedule
+import app.roz.core.FocusType
 import app.roz.core.GiftIdea
 import app.roz.core.Habit
 import app.roz.core.HabitKind
@@ -92,7 +93,7 @@ fun EditScreen(state: UiState, vm: AppViewModel, initialType: EditType, id: Long
                 EditType.HABIT -> HabitForm(state, vm, state.habits.firstOrNull { it.habit.id == id }?.habit, onDone)
                 EditType.CHORE -> ChoreForm(state, vm, state.chores.firstOrNull { it.chore.id == id }?.chore, onDone)
                 EditType.REMINDER -> ReminderForm(state, vm, state.reminders.firstOrNull { it.reminder.id == id }?.reminder, onDone)
-                EditType.BIRTHDAY -> PersonForm(vm, state.upcoming.firstOrNull { it.person.id == id }?.person, onDone)
+                EditType.BIRTHDAY -> PersonForm(state, vm, state.upcoming.firstOrNull { it.person.id == id }?.person, onDone)
             }
         }
     }
@@ -117,6 +118,7 @@ private fun ColumnScope.HabitForm(state: UiState, vm: AppViewModel, existing: Ha
     var weekly by rememberSaveable { mutableStateOf(existing?.perWeek != null) }
     var perWeek by rememberSaveable { mutableStateOf(existing?.perWeek ?: 4) }
     var reminder by rememberSaveable { mutableStateOf(existing?.reminderMinute) }
+    var priority by rememberSaveable { mutableStateOf(existing != null && state.focusPick?.let { it.type == FocusType.HABIT && it.id == existing.id } == true) }
 
     NameField(name, "Name, e.g. Walk 8,000 steps") { name = it }
     FieldLabel("Kind")
@@ -146,6 +148,7 @@ private fun ColumnScope.HabitForm(state: UiState, vm: AppViewModel, existing: Ha
     if (reminder != null) {
         TextButtonRow("Change time") { pickTime(context, reminder ?: (8 * 60)) { reminder = it } }
     }
+    if (kind != HabitKind.AT_MOST) PriorityToggle(state, FocusType.HABIT, existing?.id, priority) { priority = it }
     Hint("Missing one day a week is forgiven automatically. Strength rises with every done day and drops a little with a miss.")
     SaveAndDelete(
         canSave = name.isNotBlank(),
@@ -161,6 +164,7 @@ private fun ColumnScope.HabitForm(state: UiState, vm: AppViewModel, existing: Ha
                     createdOn = existing?.createdOn ?: state.today,
                     reminderMinute = reminder,
                 ),
+                priority = priority && kind != HabitKind.AT_MOST,
             )
             onDone()
         },
@@ -215,6 +219,7 @@ private fun ColumnScope.ChoreForm(state: UiState, vm: AppViewModel, existing: Ch
     var unit by rememberSaveable { mutableStateOf((rule as? Repeat.AfterDone)?.unit ?: Repeat.Unit.DAYS) }
     var lastDone by rememberSaveable { mutableStateOf(existing?.lastDone) }
     var inSummary by rememberSaveable { mutableStateOf(existing?.inMorningSummary ?: true) }
+    var priority by rememberSaveable { mutableStateOf(existing != null && state.focusPick?.let { it.type == FocusType.CHORE && it.id == existing.id } == true) }
 
     val built: Repeat? = if (afterDone) Repeat.AfterDone(amount, unit) else when (scheduleKind) {
         ScheduleKind.WEEKLY -> if (weekDays.isEmpty()) null else Repeat.Weekly(weekDays.sorted(), everyWeeks, today)
@@ -288,6 +293,7 @@ private fun ColumnScope.ChoreForm(state: UiState, vm: AppViewModel, existing: Ch
         }
     }
     ToggleRow("Show in morning summary", "On the day it's due", inSummary) { inSummary = it }
+    PriorityToggle(state, FocusType.CHORE, existing?.id, priority) { priority = it }
     if (built != null && due != null) {
         Spacer(Modifier.height(12.dp))
         Text(
@@ -311,6 +317,7 @@ private fun ColumnScope.ChoreForm(state: UiState, vm: AppViewModel, existing: Ch
                     paused = existing?.paused ?: false,
                     inMorningSummary = inSummary,
                 ),
+                priority = priority,
             )
             onDone()
         },
@@ -353,6 +360,7 @@ private fun ColumnScope.ReminderForm(state: UiState, vm: AppViewModel, existing:
         )
     }
     val weekDays = remember { mutableStateListOf<Int>().apply { addAll((existing?.rule as? Repeat.Weekly)?.days ?: listOf(date.dayOfWeek.value)) } }
+    var priority by rememberSaveable { mutableStateOf(existing != null && state.focusPick?.let { it.type == FocusType.REMINDER && it.id == existing.id } == true) }
 
     NameField(title, "What to remember, e.g. Pay electricity bill") { title = it }
     FieldLabel("When")
@@ -379,6 +387,7 @@ private fun ColumnScope.ReminderForm(state: UiState, vm: AppViewModel, existing:
         ReminderRepeat.MONTHLY -> Repeat.MonthlyOnDate(date.dayOfMonth, 1, date)
         ReminderRepeat.YEARLY -> Repeat.Yearly(date.monthValue, date.dayOfMonth)
     }
+    PriorityToggle(state, FocusType.REMINDER, existing?.id, priority) { priority = it }
     if (rule != null) Hint(RepeatText.describe(rule) + " at " + Reminders.timeLabel(minute))
     SaveAndDelete(
         canSave = title.isNotBlank() && !(repeat == ReminderRepeat.WEEKLY && weekDays.isEmpty()),
@@ -392,6 +401,7 @@ private fun ColumnScope.ReminderForm(state: UiState, vm: AppViewModel, existing:
                     minute = minute,
                     rule = rule,
                 ),
+                priority = priority,
             )
             onDone()
         },
@@ -402,7 +412,7 @@ private fun ColumnScope.ReminderForm(state: UiState, vm: AppViewModel, existing:
 // ---------------- Birthday ----------------
 
 @Composable
-private fun ColumnScope.PersonForm(vm: AppViewModel, existing: Person?, onDone: () -> Unit) {
+private fun ColumnScope.PersonForm(state: UiState, vm: AppViewModel, existing: Person?, onDone: () -> Unit) {
     val context = LocalContext.current
     var name by rememberSaveable { mutableStateOf(existing?.name ?: "") }
     var relation by rememberSaveable { mutableStateOf(existing?.relation ?: "") }
@@ -413,6 +423,7 @@ private fun ColumnScope.PersonForm(vm: AppViewModel, existing: Person?, onDone: 
     var phone by rememberSaveable { mutableStateOf(existing?.phone ?: "") }
     val gifts = remember { mutableStateListOf<GiftIdea>().apply { addAll(existing?.gifts.orEmpty()) } }
     var newGift by rememberSaveable { mutableStateOf("") }
+    var priority by rememberSaveable { mutableStateOf(existing != null && state.focusPick?.let { it.type == FocusType.PERSON && it.id == existing.id } == true) }
 
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Pill("Birthday", kind == OccasionKind.BIRTHDAY, Modifier.weight(1f)) { kind = OccasionKind.BIRTHDAY }
@@ -448,13 +459,14 @@ private fun ColumnScope.PersonForm(vm: AppViewModel, existing: Person?, onDone: 
         Spacer(Modifier.width(8.dp))
         OutlinedButton(onClick = { if (newGift.isNotBlank()) { gifts += GiftIdea(newGift.trim()); newGift = "" } }) { Text("Add", color = palette.ink) }
     }
+    PriorityToggle(state, FocusType.PERSON, existing?.id, priority) { priority = it }
     Hint("You'll get an alert 7 days before, 1 day before and on the day.")
     SaveAndDelete(
         canSave = name.isNotBlank(),
         label = "Save",
         onSave = {
             val pending = if (newGift.isNotBlank()) gifts + GiftIdea(newGift.trim()) else gifts.toList()
-            vm.savePerson(Person(existing?.id ?: 0, name.trim(), relation.trim(), kind, month, day, year, phone.trim().ifBlank { null }, pending))
+            vm.savePerson(Person(existing?.id ?: 0, name.trim(), relation.trim(), kind, month, day, year, phone.trim().ifBlank { null }, pending), priority)
             onDone()
         },
         onDelete = existing?.let { { vm.delete(DeletedItem.Type.PERSON, it.id, it.name); onDone() } },
@@ -462,6 +474,19 @@ private fun ColumnScope.PersonForm(vm: AppViewModel, existing: Person?, onDone: 
 }
 
 // ---------------- pieces ----------------
+
+/** The "Top priority" switch at the end of each form. Only one item can hold it at a time. */
+@Composable
+private fun PriorityToggle(state: UiState, type: FocusType, id: Long?, checked: Boolean, onChange: (Boolean) -> Unit) {
+    val current = state.focus
+    val mine = id != null && current != null && current.pick.type == type && current.pick.id == id
+    val subtitle = if (checked && current != null && !mine) {
+        "Replaces “${current.title}” on Today and your lock screen"
+    } else {
+        "Shows first on Today and on your lock screen"
+    }
+    ToggleRow("Top priority", subtitle, checked, onChange)
+}
 
 @Composable
 private fun NameField(value: String, placeholder: String, onChange: (String) -> Unit) {

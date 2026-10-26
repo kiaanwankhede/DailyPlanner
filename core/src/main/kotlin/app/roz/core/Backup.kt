@@ -25,6 +25,10 @@ import javax.crypto.spec.SecretKeySpec
 data class Settings(
     val morningMinute: Int = 8 * 60,
     val eveningMinute: Int = 20 * 60 + 30,
+    /** The item marked as top priority, if any. */
+    val focus: FocusPick? = null,
+    /** Show only "Top priority" (not what it is) when the phone is locked. */
+    val hideFocusOnLock: Boolean = false,
 )
 
 @Serializable

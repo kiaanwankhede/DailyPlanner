@@ -2,6 +2,8 @@
 
 package app.roz.ui
 
+import app.roz.core.FocusType
+import app.roz.core.FocusPick
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -43,7 +45,14 @@ import java.time.LocalDate
 
 /** A chore: tick to do it, tap to edit, long-press for skip / pause / delete. */
 @Composable
-fun ChoreRow(item: ChoreToday, today: LocalDate, vm: AppViewModel, onEdit: (EditType, Long?) -> Unit, showKind: Boolean = false) {
+fun ChoreRow(
+    item: ChoreToday,
+    today: LocalDate,
+    vm: AppViewModel,
+    onEdit: (EditType, Long?) -> Unit,
+    showKind: Boolean = false,
+    focus: FocusPick? = null,
+) {
     val chore = item.chore
     var menu by remember { mutableStateOf(false) }
     Box {
@@ -70,6 +79,13 @@ fun ChoreRow(item: ChoreToday, today: LocalDate, vm: AppViewModel, onEdit: (Edit
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             DropdownMenuItem(text = { Text("Skip this time") }, onClick = { menu = false; vm.skipChore(chore) })
             DropdownMenuItem(text = { Text(if (chore.paused) "Resume" else "Pause") }, onClick = { menu = false; vm.pauseChore(chore, !chore.paused) })
+            val focused = focus != null && focus.type == FocusType.CHORE && focus.id == chore.id
+            if (!chore.paused) {
+                DropdownMenuItem(
+                    text = { Text(if (focused) "Remove top priority" else "Make top priority") },
+                    onClick = { menu = false; if (focused) vm.clearFocus() else vm.setFocus(FocusType.CHORE, chore.id) },
+                )
+            }
             DropdownMenuItem(text = { Text("Edit") }, onClick = { menu = false; onEdit(EditType.CHORE, chore.id) })
             DropdownMenuItem(text = { Text("Delete") }, onClick = { menu = false; vm.delete(DeletedItem.Type.CHORE, chore.id, chore.name) })
         }
@@ -85,6 +101,7 @@ fun ReminderRow(
     onEdit: (EditType, Long?) -> Unit,
     expanded: Boolean = false,
     showKind: Boolean = false,
+    focus: FocusPick? = null,
 ) {
     val r = stored.reminder
     var menu by remember { mutableStateOf(false) }
@@ -133,6 +150,13 @@ fun ReminderRow(
             if (r.doneAt == null) {
                 DropdownMenuItem(text = { Text("In 1 hour") }, onClick = { menu = false; vm.snoozeReminder(stored, tomorrow = false) })
                 DropdownMenuItem(text = { Text("Tomorrow") }, onClick = { menu = false; vm.snoozeReminder(stored, tomorrow = true) })
+            }
+            if (r.doneAt == null) {
+                val focused = focus != null && focus.type == FocusType.REMINDER && focus.id == r.id
+                DropdownMenuItem(
+                    text = { Text(if (focused) "Remove top priority" else "Make top priority") },
+                    onClick = { menu = false; if (focused) vm.clearFocus() else vm.setFocus(FocusType.REMINDER, r.id) },
+                )
             }
             DropdownMenuItem(text = { Text("Edit") }, onClick = { menu = false; onEdit(EditType.REMINDER, r.id) })
             DropdownMenuItem(text = { Text("Delete") }, onClick = { menu = false; vm.delete(DeletedItem.Type.REMINDER, r.id, r.title) })
